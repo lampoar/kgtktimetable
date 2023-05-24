@@ -1,9 +1,18 @@
 import telebot
 import openpyxl
 import datetime
+import sqlite3
 
+conn = sqlite3.connect('data.db')
+c = conn.cursor()
+
+c.execute('''CREATE TABLE IF NOT EXISTS users
+             (chat_id INTEGER PRIMARY KEY, group_number INTEGER)''')
+
+conn.commit()
+conn.close()
 # Load the Excel file
-workbook = openpyxl.load_workbook('03.09.xlsx')
+workbook = openpyxl.load_workbook('ped.xlsx')
 
 # Select the sheet with the schedule
 sheet = workbook['1']  # Replace with the name of your sheet
@@ -44,11 +53,28 @@ def send_welcome(message):
 
 
 # Define the message handler
-@bot.message_handler(func=lambda message: True)
+@bot.message_handler(func=lambda message: True )
 def echo_all(message):
-    # Get the group number from the user
-    group_number = message.text
+    # Check if the user has already entered their group number
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
 
+    c.execute('SELECT * FROM users WHERE chat_id = ?', (message.chat.id,))
+    result = c.fetchone()
+
+    if result is None:
+        # The user has not entered their group number yet
+        group_number = message.text
+        c.execute('INSERT INTO users VALUES (?, ?)', (message.chat.id, group_number))
+        conn.commit()
+    else:
+        group_number = result[1]
+
+    process_day_choice(message, group_number)
+
+
+# Define the day choice handler
+def process_day_choice(message, group_number):
     # Ask the user if they want to see today's schedule, tomorrow's schedule or the whole week's schedule
     markup = telebot.types.ReplyKeyboardMarkup(row_width=1)
     itembtn1 = telebot.types.KeyboardButton('Сегодня')
@@ -59,25 +85,26 @@ def echo_all(message):
     msg = bot.reply_to(message,
                        f'Хотите посмотреть расписание на {today_day_name_ru}, на {tomorrow_day_name_ru} или на всю неделю?',
                        reply_markup=markup)
-    bot.register_next_step_handler(msg, process_day_choice, group_number)
 
-
-# Define the day choice handler
-def process_day_choice(message, group_number):
     day_choice = message.text.lower()
+
     if day_choice == 'сегодня':
         day_name_ru = today_day_name_ru
         days = [day_name_ru]
+        process_schedule(message, group_number, days)
     elif day_choice == 'завтра':
         day_name_ru = tomorrow_day_name_ru
         days = [day_name_ru]
+        process_schedule(message, group_number, days)
     elif day_choice == 'неделя':
         day_name_ru = list(day_names_dict.values())
         days = day_name_ru
+        process_schedule(message, group_number, days)
     else:
         bot.send_message(message.chat.id, 'Некорректный ввод. Попробуйте еще раз.')
         return
 
+def process_schedule(message, group_number, days):
     # Find the row with the group number
     group_row = None
     for row in sheet.iter_rows(min_row=6, max_row=sheet.max_row, min_col=1, max_col=1):
