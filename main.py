@@ -49,7 +49,7 @@ bot = telebot.TeleBot('2022385697:AAGiFoszmY_6jzPm9DLhf9P1gjz9PtNpKuw')
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(message,
-                 'Привет! Я помогу тебе узнать расписание занятий для твоей группы. Введи номер группы, например "123".')
+                 'Привет! Я помогу тебе узнать расписание занятий для твоей группы. Введи номер группы, например "123", Для того чтобы сменить группу введи /chgroupe *номер группы*.')
 
 
 # Define the message handler
@@ -75,6 +75,7 @@ def echo_all(message):
 
 # Define the day choice handler
 def process_day_choice(message, group_number):
+  #  if
     # Ask the user if they want to see today's schedule, tomorrow's schedule or the whole week's schedule
     markup = telebot.types.ReplyKeyboardMarkup(row_width=1)
     itembtn1 = telebot.types.KeyboardButton('Сегодня')
@@ -100,9 +101,9 @@ def process_day_choice(message, group_number):
         day_name_ru = list(day_names_dict.values())
         days = day_name_ru
         process_schedule(message, group_number, days)
-    else:
-        bot.send_message(message.chat.id, 'Некорректный ввод. Попробуйте еще раз.')
-        return
+ #   else:
+ #       bot.send_message(message.chat.id, 'Некорректный ввод. Попробуйте еще раз.')
+
 
 def process_schedule(message, group_number, days):
     # Find the row with the group number
@@ -146,6 +147,29 @@ def process_schedule(message, group_number, days):
         bot.send_message(message.chat.id, schedule)
     else:
         bot.send_message(message.chat.id, f'Группа - {group_number} не найдена в расписании.')
+
+
+@bot.message_handler(commands=['chgroupe'])
+def change_group_number(message):
+    group_number = message.text.split('/chgroupe ')[1]
+
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+
+    c.execute('SELECT * FROM users WHERE chat_id = ?', (message.chat.id,))
+    result = c.fetchone()
+
+    if result is None:
+        # The user has not entered their group number yet
+        c.execute('INSERT INTO users VALUES (?, ?)', (message.chat.id, group_number))
+    else:
+        c.execute('UPDATE users SET group_number = ? WHERE chat_id = ?', (group_number, message.chat.id))
+
+    conn.commit()
+    conn.close()
+
+    bot.reply_to(message, f'Номер группы успешно изменен на {group_number}.')
+
 
 # Start the bot
 bot.polling()
