@@ -9,15 +9,17 @@ conn = sqlite3.connect('data.db')
 c = conn.cursor()
 
 c.execute('''CREATE TABLE IF NOT EXISTS users
-             (chat_id INTEGER PRIMARY KEY, group_number INTEGER)''')
+             (chat_id INTEGER PRIMARY KEY, group_number INTEGER, department TEXT)''')
 
 conn.commit()
 conn.close()
+"""
 # Load the Excel file
 workbook = openpyxl.load_workbook('ped.xlsx')
 
 # Select the sheet with the schedule
 sheet = workbook['1']  # Replace with the name of your sheet
+"""
 
 now = None
 # Get the current day of the week
@@ -48,44 +50,89 @@ bot = telebot.TeleBot(TOKEN)
 
 
 # Define the start command
+
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(message,
-                 'Привет! Я помогу тебе узнать расписание занятий для твоей группы. Введи номер группы, например "123", Для того чтобы сменить группу введи /chgroupe *номер группы*.')
+                 'Привет! Я помогу тебе узнать расписание занятий для твоей группы и отделения. Выбери отделение:',
+                 reply_markup=get_department_keyboard(message))
+    department_listener(message)
+
+
+def get_department_keyboard(message):
+    markup = telebot.types.ReplyKeyboardMarkup(row_width=1)
+    itembtn1 = telebot.types.KeyboardButton('Педагогический')
+    itembtn2 = telebot.types.KeyboardButton('Технологический')
+    itembtn3 = telebot.types.KeyboardButton('Строительный')
+    markup.add(itembtn1, itembtn2, itembtn3)
+    return markup
+
+
+
 
 
 # Define the message handler
-@bot.message_handler(func=lambda message: True )
-def echo_all(message):
+@bot.message_handler(func=lambda message: True)
+def send_group_request_message(message):
+    if message.text.startswith("группа"):
+        group_listener(message)
+        print('Группа ', message.text)
+    elif message.text in ['Сегодня', 'Завтра', 'Неделя']:
+        group_listener(message)
+        print('День ', message.text)
+    elif message.text in ['Педагогический', 'Технологический', 'Строительный']:
+        department_listener(message)
+        print('Отделение ', message.text)
+        #bot.reply_to(message, 'Введи номер группы, например "123", Для того чтобы сменить группу введи /chgroupe *номер группы*.')
+    else:
+        bot.send_message(message.chat.id, 'idi naxoi')
+
+def department_listener(message):
+
+    # Save the selected department to the database
+    conn = sqlite3.connect('data.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO users (chat_id, department) VALUES (?, ?) ON CONFLICT (chat_id) DO UPDATE SET department = ?',
+              (message.chat.id, message.text, message.text))
+    conn.commit()
+    conn.close()
+    #send_group_request_message(message)
+
+
+def group_listener(message):
     # Check if the user has already entered their group number
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
 
-    c.execute('SELECT * FROM users WHERE chat_id = ?', (message.chat.id,))
+    c.execute('SELECT group_number FROM users WHERE chat_id = ?', (message.chat.id,))
     result = c.fetchone()
+    print('Группа из БД', result)
+    #print("Бот получает сообщение", message.text.split(" ", 1)[1])
 
-    if result is None:
+    if result is None or result[0] is None:
         # The user has not entered their group number yet
-        group_number = message.text
-        c.execute('INSERT INTO users VALUES (?, ?)', (message.chat.id, group_number))
+        group_number = message.text.split(" ", 1)[1]  # Extract the group number from the message
+        print('Введеный номер группы ', group_number)
+        c.execute('INSERT INTO users (chat_id, group_number) VALUES (?, ?) ON CONFLICT (chat_id) DO UPDATE SET '
+                  'group_number = ?', (message.chat.id, group_number, group_number))
         conn.commit()
+        conn.close()
     else:
-        group_number = result[1]
+        group_number = result[0]
+        print('если номер имеется то, он = ', group_number)
 
     process_day_choice(message, group_number)
 
 
 # Define the day choice handler
 def process_day_choice(message, group_number):
-  #  if
-    # Ask the user if they want to see today's schedule, tomorrow's schedule or the whole week's schedule
     markup = telebot.types.ReplyKeyboardMarkup(row_width=1)
     itembtn1 = telebot.types.KeyboardButton('Сегодня')
     itembtn2 = telebot.types.KeyboardButton('Завтра')
     itembtn3 = telebot.types.KeyboardButton('Неделя')
     markup.add(itembtn1, itembtn2, itembtn3)
-
-    msg = bot.reply_to(message,
+    msg = bot.send_message(message.chat.id,
                        f'Хотите посмотреть расписание на {today_day_name_ru}, на {tomorrow_day_name_ru} или на всю неделю?',
                        reply_markup=markup)
 
@@ -109,6 +156,32 @@ def process_day_choice(message, group_number):
 
 def process_schedule(message, group_number, days):
     # Find the row with the group number
+    def get_user_department(chat_id):
+        conn = sqlite3.connect('data.db')
+        c = conn.cursor()
+        c.execute('SELECT department FROM users WHERE chat_id = ?', (chat_id,))
+        result = c.fetchone()
+        conn.close()
+        if result is not None:
+            return result[0]
+        return None
+
+
+    department = get_user_department(message.chat.id)
+    if department == 'Педагогический':
+        workbook = openpyxl.load_workbook('ped.xlsx')
+        sheet = workbook['1']
+    elif department == 'Технологический':
+        workbook = openpyxl.load_workbook('tex.xlsx')
+        sheet = workbook['1']
+    elif department == 'Строительный':
+        workbook = openpyxl.load_workbook('str.xlsx')
+        sheet = workbook['1']
+    else:
+        bot.send_message(message.chat.id, 'Отделение не определено.')
+        return
+
+
     group_row = None
     for row in sheet.iter_rows(min_row=6, max_row=sheet.max_row, min_col=1, max_col=1):
         if row[0].value == f'Группа - {group_number}':
@@ -149,28 +222,6 @@ def process_schedule(message, group_number, days):
         bot.send_message(message.chat.id, schedule)
     else:
         bot.send_message(message.chat.id, f'Группа - {group_number} не найдена в расписании.')
-
-
-@bot.message_handler(commands=['chgroupe'])
-def change_group_number(message):
-    group_number = message.text.split('/chgroupe ')[1]
-
-    conn = sqlite3.connect('data.db')
-    c = conn.cursor()
-
-    c.execute('SELECT * FROM users WHERE chat_id = ?', (message.chat.id,))
-    result = c.fetchone()
-
-    if result is None:
-        # The user has not entered their group number yet
-        c.execute('INSERT INTO users VALUES (?, ?)', (message.chat.id, group_number))
-    else:
-        c.execute('UPDATE users SET group_number = ? WHERE chat_id = ?', (group_number, message.chat.id))
-
-    conn.commit()
-    conn.close()
-
-    bot.reply_to(message, f'Номер группы успешно изменен на {group_number}.')
 
 
 # Start the bot
