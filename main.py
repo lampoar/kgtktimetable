@@ -2,7 +2,9 @@ import telebot
 import openpyxl
 import datetime
 import sqlite3
+import os
 
+TOKEN = os.getenv("TOKEN")
 conn = sqlite3.connect('data.db')
 c = conn.cursor()
 
@@ -42,7 +44,7 @@ number_to_time_dict_sat = {'1': '8.00 - 9.20', '2': '9.30 - 10.50', '3': '11.00 
                            '4': '12.40 - 14.00', '5': '14.10 - 15.30', '6': '15.40 - 17.00'}
 
 # Create the Telegram bot object
-bot = telebot.TeleBot('2022385697:AAGiFoszmY_6jzPm9DLhf9P1gjz9PtNpKuw')
+bot = telebot.TeleBot(TOKEN)
 
 
 # Define the start command
