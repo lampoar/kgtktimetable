@@ -114,8 +114,7 @@ def group_listener(message):
         # The user has not entered their group number yet
         group_number = message.text.split(" ", 1)[1]  # Extract the group number from the message
         print('Введеный номер группы ', group_number)
-        c.execute('INSERT INTO users (chat_id, group_number) VALUES (?, ?) ON CONFLICT (chat_id) DO UPDATE SET '
-                  'group_number = ?', (message.chat.id, group_number, group_number))
+        c.execute('INSERT INTO users (chat_id, group_number) VALUES (?, ?) ON CONFLICT (chat_id) DO UPDATE SET group_number = ?', (message.chat.id, group_number, group_number))
         conn.commit()
         conn.close()
     else:
