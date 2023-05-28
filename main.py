@@ -115,7 +115,6 @@ def department_listener(message):
 
 def group_handler(message):
     # Check if the user has already entered their group number
-<<<<<<< HEAD
     conn = sqlite3.connect('data.db')
     c = conn.cursor()
 
@@ -136,7 +135,6 @@ def group_handler(message):
         print('если номер имеется то, он = ', group_number)
 
     process_day_choice(message, group_number)
-=======
     try:
         conn = sqlite3.connect('data.db')
         c = conn.cursor()
@@ -163,7 +161,6 @@ def group_handler(message):
         # process_day_choice(message, group_number)
     except IndexError:
         bot.send_message(message.chat.id, 'Введите номер группы с помощью слова Группа №группы, например Группа 2230')
->>>>>>> testing
 
 
 # Define the day choice handler
