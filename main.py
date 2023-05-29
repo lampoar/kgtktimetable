@@ -97,7 +97,7 @@ def send_group_request_message(message):
         department_listener(message)
         print('Отделение ', message.text)
     else:
-        bot.send_message(message.chat.id, 'idi naxoi')
+        bot.send_message(message.chat.id, 'Неизвестное сообщение')
 
 
 def department_listener(message):
@@ -157,7 +157,7 @@ def group_handler(message):
         else:
             group_number = result[0]
             print('если номер имеется то, он = ', group_number)
-            process_day_choice(message, group_number)
+            #process_day_choice(message, group_number)
         # process_day_choice(message, group_number)
     except IndexError:
         bot.send_message(message.chat.id, 'Введите номер группы с помощью слова Группа №группы, например Группа 2230')
@@ -218,17 +218,23 @@ def process_schedule(message, group_number, days):
         return None
 
     department = get_user_department(message.chat.id)
-    if department == 'Педагогическое':
-        workbook = openpyxl.load_workbook('ped.xlsx')
-        sheet = workbook['1']
-    elif department == 'Технологическое':
-        workbook = openpyxl.load_workbook('tex.xlsx')
-        sheet = workbook['1']
-    elif department == 'Строительное':
-        workbook = openpyxl.load_workbook('str.xlsx')
-        sheet = workbook['1']
-    else:
-        bot.send_message(message.chat.id, 'Отделение не определено.')
+    try:
+        if department == 'Педагогическое':
+            workbook = openpyxl.load_workbook('ped.xlsx')
+            sheet = workbook['1']
+        elif department == 'Технологическое':
+            workbook = openpyxl.load_workbook('tex.xlsx')
+            sheet = workbook['1']
+        elif department == 'Строительное':
+            workbook = openpyxl.load_workbook('str.xlsx')
+            sheet = workbook['1']
+        else:
+            bot.send_message(message.chat.id, 'Отделение не определено.')
+            return
+    except FileNotFoundError:
+        bot.send_message(message.chat.id, "Не удалось найти файл с расписанием на сервере")
+        print('Не удалось найти файл с расписанием на сервере')
+        send_welcome(message)
         return
 
     group_row = None
