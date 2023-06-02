@@ -72,7 +72,7 @@ def send_welcome(message):
                  'Привет! Я помогу тебе узнать расписание занятий для твоей группы. Для смены группы введи /chgroup '
                  '№Группы, например /chgroup 1234. Больше информации в /about. Выбери отделение:',
                  reply_markup=get_department_keyboard(message))
-    # department_listener(message)
+
 
 
 def get_department_keyboard(message):
