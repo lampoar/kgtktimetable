@@ -5,4 +5,4 @@ data.db
 .idea
 testbot.7z
 data.db
-venv
+.venv

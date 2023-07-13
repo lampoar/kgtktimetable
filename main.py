@@ -5,6 +5,7 @@ import sqlite3
 import os
 
 TOKEN = os.getenv("TOKEN")
+TOKEN = ("TOKEN")
 conn = sqlite3.connect('data.db')
 c = conn.cursor()
 
