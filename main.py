@@ -163,6 +163,7 @@ def group_handler(message):
         bot.send_message(message.chat.id, 'Введите номер группы с помощью слова Группа №группы, например Группа 2230')
 
 
+
 # Define the day choice handler
 def process_day_choice(message, group_number):
     now = None
